@@ -1,6 +1,6 @@
 ## EX. NO:2 IMPLEMENTATION OF PLAYFAIR CIPHER
-
- 
+### REG.NO:212224110035
+### DATE:07-09-2025
 
 ## AIM:
  
@@ -26,18 +26,149 @@ To encrypt a message, one would break the message into digrams (groups of 2 lett
 ## ALGORITHM:
 
 STEP-1: Read the plain text from the user.
+
 STEP-2: Read the keyword from the user.
+
 STEP-3: Arrange the keyword without duplicates in a 5*5 matrix in the row order and fill the remaining cells with missed out letters in alphabetical order. Note that ‘i’ and ‘j’ takes the same cell.
+
 STEP-4: Group the plain text in pairs and match the corresponding corner letters by forming a rectangular grid.
+
 STEP-5: Display the obtained cipher text.
 
 
 
 
 Program:
+```#include <stdio.h>
+#include <string.h>
+#include <ctype.h>
 
+#define SIZE 5
 
+char keyTable[SIZE][SIZE];
+int pos[26][2]; // store row,col for each letter
 
+// Function to generate key table
+void generateKeyTable(char key[]) {
+    int used[26] = {0};
+    int row = 0, col = 0;
 
+    // Treat I and J as same
+    used['J' - 'A'] = 1;
+
+    // Insert key
+    for (int i = 0; i < strlen(key); i++) {
+        char c = toupper(key[i]);
+        if (c < 'A' || c > 'Z') continue;
+        if (c == 'J') c = 'I';
+        if (!used[c - 'A']) {
+            keyTable[row][col] = c;
+            pos[c - 'A'][0] = row;
+            pos[c - 'A'][1] = col;
+            used[c - 'A'] = 1;
+            col++;
+            if (col == SIZE) { col = 0; row++; }
+        }
+    }
+
+    // Fill remaining letters
+    for (char c = 'A'; c <= 'Z'; c++) {
+        if (!used[c - 'A']) {
+            keyTable[row][col] = c;
+            pos[c - 'A'][0] = row;
+            pos[c - 'A'][1] = col;
+            used[c - 'A'] = 1;
+            col++;
+            if (col == SIZE) { col = 0; row++; }
+        }
+    }
+}
+
+// Prepare plaintext into pairs
+int prepareText(char text[], char pairs[][2]) {
+    int n = strlen(text), k = 0;
+    for (int i = 0; i < n; i++) {
+        char c = toupper(text[i]);
+        if (c < 'A' || c > 'Z') continue;
+        if (c == 'J') c = 'I';
+
+        if (k > 0 && pairs[k-1][0] == c && pairs[k-1][1] == '\0') {
+            pairs[k-1][1] = 'X';
+            i--;
+            k++;
+        } else {
+            if (pairs[k][0] == '\0')
+                pairs[k][0] = c;
+            else {
+                pairs[k][1] = c;
+                k++;
+            }
+        }
+    }
+    // If odd length → add X
+    if (pairs[k][0] != '\0' && pairs[k][1] == '\0') {
+        pairs[k][1] = 'X';
+        k++;
+    }
+    return k;
+}
+
+// Encrypt one pair
+void encryptPair(char a, char b, char *x, char *y) {
+    int r1 = pos[a - 'A'][0], c1 = pos[a - 'A'][1];
+    int r2 = pos[b - 'A'][0], c2 = pos[b - 'A'][1];
+
+    if (r1 == r2) { // Same row
+        *x = keyTable[r1][(c1 + 1) % SIZE];
+        *y = keyTable[r2][(c2 + 1) % SIZE];
+    } else if (c1 == c2) { // Same column
+        *x = keyTable[(r1 + 1) % SIZE][c1];
+        *y = keyTable[(r2 + 1) % SIZE][c2];
+    } else { // Rectangle
+        *x = keyTable[r1][c2];
+        *y = keyTable[r2][c1];
+    }
+}
+
+int main() {
+    char key[] = "MAHA SHREE";
+    char text[] = "MAHA SHREE";
+    char pairs[50][2] = {{0}};
+    char encrypted[100];
+    int pairCount, k = 0;
+
+    // Generate key table
+    generateKeyTable(key);
+
+   
+
+    // Prepare text
+    pairCount = prepareText(text, pairs);
+
+    printf("\nPairs:\n");
+    for (int i = 0; i < pairCount; i++) {
+        printf("%c%c ", pairs[i][0], pairs[i][1]);
+    }
+
+    // Encrypt
+    printf("\n\nEncrypted Text: ");
+    for (int i = 0; i < pairCount; i++) {
+        char x, y;
+        encryptPair(pairs[i][0], pairs[i][1], &x, &y);
+        encrypted[k++] = x;
+        encrypted[k++] = y;
+    }
+    encrypted[k] = '\0';
+    printf("%s\n", encrypted);
+
+    return 0;
+}
+```
 
 Output:
+
+<img width="739" height="229" alt="image" src="https://github.com/user-attachments/assets/22749535-e172-4de5-a4b6-2382f5c883b4" />
+
+Result:
+
+Thus the result was implemented successfully.
