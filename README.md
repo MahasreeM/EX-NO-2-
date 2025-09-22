@@ -39,135 +39,171 @@ STEP-5: Display the obtained cipher text.
 
 
 Program:
-```#include <stdio.h>
+```
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
-#include <ctype.h>
+#define SIZE 30
 
-#define SIZE 5
-
-char keyTable[SIZE][SIZE];
-int pos[26][2]; // store row,col for each letter
-
-// Function to generate key table
-void generateKeyTable(char key[]) {
-    int used[26] = {0};
-    int row = 0, col = 0;
-
-    // Treat I and J as same
-    used['J' - 'A'] = 1;
-
-    // Insert key
-    for (int i = 0; i < strlen(key); i++) {
-        char c = toupper(key[i]);
-        if (c < 'A' || c > 'Z') continue;
-        if (c == 'J') c = 'I';
-        if (!used[c - 'A']) {
-            keyTable[row][col] = c;
-            pos[c - 'A'][0] = row;
-            pos[c - 'A'][1] = col;
-            used[c - 'A'] = 1;
-            col++;
-            if (col == SIZE) { col = 0; row++; }
-        }
-    }
-
-    // Fill remaining letters
-    for (char c = 'A'; c <= 'Z'; c++) {
-        if (!used[c - 'A']) {
-            keyTable[row][col] = c;
-            pos[c - 'A'][0] = row;
-            pos[c - 'A'][1] = col;
-            used[c - 'A'] = 1;
-            col++;
-            if (col == SIZE) { col = 0; row++; }
-        }
-    }
+void toLowerCase(char plain[], int ps) {
+  for (int i = 0; i < ps; i++) {
+      if (plain[i] >= 'A' && plain[i] <= 'Z')
+          plain[i] += 32;
+  }
 }
 
-// Prepare plaintext into pairs
-int prepareText(char text[], char pairs[][2]) {
-    int n = strlen(text), k = 0;
-    for (int i = 0; i < n; i++) {
-        char c = toupper(text[i]);
-        if (c < 'A' || c > 'Z') continue;
-        if (c == 'J') c = 'I';
-
-        if (k > 0 && pairs[k-1][0] == c && pairs[k-1][1] == '\0') {
-            pairs[k-1][1] = 'X';
-            i--;
-            k++;
-        } else {
-            if (pairs[k][0] == '\0')
-                pairs[k][0] = c;
-            else {
-                pairs[k][1] = c;
-                k++;
-            }
-        }
-    }
-    // If odd length → add X
-    if (pairs[k][0] != '\0' && pairs[k][1] == '\0') {
-        pairs[k][1] = 'X';
-        k++;
-    }
-    return k;
+int removeSpaces(char *plain, int ps) {
+  int i, count = 0;
+  for (i = 0; i < ps; i++) {
+      if (plain[i] != ' ')
+          plain[count++] = plain[i];
+  }
+  plain[count] = '\0';
+  return count;
 }
 
-// Encrypt one pair
-void encryptPair(char a, char b, char *x, char *y) {
-    int r1 = pos[a - 'A'][0], c1 = pos[a - 'A'][1];
-    int r2 = pos[b - 'A'][0], c2 = pos[b - 'A'][1];
+void generateKeyTable(char key[], int ks, char keyT[5][5]) {
+  int i, j, k;
+  int dicty[26] = {0};
+  for (i = 0; i < ks; i++) {
+      if (key[i] != 'j')
+          dicty[key[i] - 'a'] = 2;
+  }
+  dicty['j' - 'a'] = 1;
+  i = 0; j = 0;
+  for (k = 0; k < ks; k++) {
+      if (dicty[key[k] - 'a'] == 2) {
+          dicty[key[k] - 'a'] -= 1;
+          keyT[i][j] = key[k];
+          j++;
+          if (j == 5) {
+              i++;
+              j = 0;
+          }
+      }
+  }
+  for (k = 0; k < 26; k++) {
+      if (dicty[k] == 0 && (char)(k + 'a') != 'j') {
+          keyT[i][j] = (char)(k + 'a');
+          j++;
+          if (j == 5) {
+              i++;
+              j = 0;
+          }
+      }
+  }
+}
 
-    if (r1 == r2) { // Same row
-        *x = keyTable[r1][(c1 + 1) % SIZE];
-        *y = keyTable[r2][(c2 + 1) % SIZE];
-    } else if (c1 == c2) { // Same column
-        *x = keyTable[(r1 + 1) % SIZE][c1];
-        *y = keyTable[(r2 + 1) % SIZE][c2];
-    } else { // Rectangle
-        *x = keyTable[r1][c2];
-        *y = keyTable[r2][c1];
-    }
+void search(char keyT[5][5], char a, char b, int arr[]) {
+  int i, j;
+  if (a == 'j') a = 'i';
+  if (b == 'j') b = 'i';
+  for (i = 0; i < 5; i++) {
+      for (j = 0; j < 5; j++) {
+          if (keyT[i][j] == a) {
+              arr[0] = i;
+              arr[1] = j;
+          } else if (keyT[i][j] == b) {
+              arr[2] = i;
+              arr[3] = j;
+          }
+      }
+  }
+}
+
+int mod5(int a) {
+  return (a % 5 + 5) % 5;
+}
+
+int prepare(char str[], int ptrs) {
+  if (ptrs % 2 != 0) {
+      str[ptrs++] = 'z';
+      str[ptrs] = '\0';
+  }
+  return ptrs;
+}
+
+void encrypt(char str[], char keyT[5][5], int ps) {
+  int i, a[4];
+  for (i = 0; i < ps; i += 2) {
+      search(keyT, str[i], str[i + 1], a);
+      if (a[0] == a[2]) {
+          str[i] = keyT[a[0]][mod5(a[1] + 1)];
+          str[i + 1] = keyT[a[2]][mod5(a[3] + 1)];
+      } else if (a[1] == a[3]) {
+          str[i] = keyT[mod5(a[0] + 1)][a[1]];
+          str[i + 1] = keyT[mod5(a[2] + 1)][a[3]];
+      } else {
+          str[i] = keyT[a[0]][a[3]];
+          str[i + 1] = keyT[a[2]][a[1]];
+      }
+  }
+}
+
+void decrypt(char str[], char keyT[5][5], int ps) {
+  int i, a[4];
+  for (i = 0; i < ps; i += 2) {
+      search(keyT, str[i], str[i + 1], a);
+      if (a[0] == a[2]) {
+          str[i] = keyT[a[0]][mod5(a[1] - 1)];
+          str[i + 1] = keyT[a[2]][mod5(a[3] - 1)];
+      } else if (a[1] == a[3]) {
+          str[i] = keyT[mod5(a[0] - 1)][a[1]];
+          str[i + 1] = keyT[mod5(a[2] - 1)][a[3]];
+      } else {
+          str[i] = keyT[a[0]][a[3]];
+          str[i + 1] = keyT[a[2]][a[1]];
+      }
+  }
+}
+
+void encryptByPlayfairCipher(char str[], char key[]) {
+  int ps, ks;
+  char keyT[5][5];
+  ks = strlen(key);
+  ks = removeSpaces(key, ks);
+  toLowerCase(key, ks);
+  ps = strlen(str);
+  toLowerCase(str, ps);
+  ps = removeSpaces(str, ps);
+  ps = prepare(str, ps);
+  generateKeyTable(key, ks, keyT);
+  encrypt(str, keyT, ps);
+}
+
+void decryptByPlayfairCipher(char str[], char key[]) {
+  int ps, ks;
+  char keyT[5][5];
+  ks = strlen(key);
+  ks = removeSpaces(key, ks);
+  toLowerCase(key, ks);
+  ps = strlen(str);
+  toLowerCase(str, ps);
+  ps = removeSpaces(str, ps);
+  generateKeyTable(key, ks, keyT);
+  decrypt(str, keyT, ps);
 }
 
 int main() {
-    char key[] = "MAHA SHREE";
-    char text[] = "MAHA SHREE";
-    char pairs[50][2] = {{0}};
-    char encrypted[100];
-    int pairCount, k = 0;
-
-    // Generate key table
-    generateKeyTable(key);
-
-   
-
-    // Prepare text
-    pairCount = prepareText(text, pairs);
-
-    printf("\nPairs:\n");
-    for (int i = 0; i < pairCount; i++) {
-        printf("%c%c ", pairs[i][0], pairs[i][1]);
-    }
-
-    // Encrypt
-    printf("\n\nEncrypted Text: ");
-    for (int i = 0; i < pairCount; i++) {
-        char x, y;
-        encryptPair(pairs[i][0], pairs[i][1], &x, &y);
-        encrypted[k++] = x;
-        encrypted[k++] = y;
-    }
-    encrypted[k] = '\0';
-    printf("%s\n", encrypted);
-
-    return 0;
+  char str[SIZE], key[SIZE];
+  printf("Playfair Cipher\n");
+  strcpy(key, "CRYPTOGRAPHY");
+  printf("Key text: %s\n", key);
+  strcpy(str, "Elaiyavan");
+  printf("Plain text: %s\n", str);
+  encryptByPlayfairCipher(str, key);
+  printf("Cipher text: %s\n", str);
+  decryptByPlayfairCipher(str, key);
+  printf("Decrypted text: %s\n", str);
+  return 0;
 }
+
 ```
 
 Output:
 
-<img width="739" height="229" alt="image" src="https://github.com/user-attachments/assets/22749535-e172-4de5-a4b6-2382f5c883b4" />
+<img width="806" height="422" alt="image" src="https://github.com/user-attachments/assets/d46e907d-6b76-4106-abd1-818d35dc59aa" />
+
 
 Result:
 
